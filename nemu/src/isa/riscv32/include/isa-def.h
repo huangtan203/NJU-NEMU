@@ -21,7 +21,32 @@
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;
+  // CSR registers
+  word_t mstatus;
+  word_t mtvec;
+  word_t mscratch;
+  word_t mepc;
+  word_t mcause;
+  word_t mie;
+  word_t mip;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
+
+// CSR addresses
+#define CSR_MSTATUS   0x300
+#define CSR_MTVEC     0x305
+#define CSR_MSCRATCH  0x340
+#define CSR_MEPC      0x341
+#define CSR_MCAUSE    0x342
+#define CSR_MIE       0x304
+#define CSR_MIP       0x344
+
+// mstatus bits
+#define MSTATUS_MIE   (1 << 3)   // Machine Interrupt Enable
+#define MSTATUS_MPIE  (1 << 7)   // Machine Previous Interrupt Enable
+
+// mie/mip bits
+#define MIP_MTIP      (1 << 7)   // Machine Timer Interrupt Pending
+#define MIE_MTIE      (1 << 7)   // Machine Timer Interrupt Enable
 
 // decode
 typedef struct {

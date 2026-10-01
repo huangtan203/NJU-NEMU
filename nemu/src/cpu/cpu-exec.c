@@ -84,6 +84,12 @@ static void execute(uint64_t n) {
       nemu_state.state = NEMU_STOP;
       break;
     }
+    // check interrupt
+    word_t intr_no = isa_query_intr();
+    if (intr_no != INTR_EMPTY && nemu_state.state == NEMU_RUNNING) {
+      s.dnpc = isa_raise_intr(intr_no, cpu.pc);
+      cpu.pc = s.dnpc;
+    }
   }
 }
 

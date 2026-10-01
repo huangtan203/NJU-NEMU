@@ -132,6 +132,83 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , N, NEMUTRAP(s->pc, R(10)));
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10)));
 
+  // mret
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , N, s->dnpc = cpu.mepc; cpu.mstatus = (cpu.mstatus & ~MSTATUS_MPIE) | ((cpu.mstatus & MSTATUS_MPIE) ? MSTATUS_MIE : 0));
+
+  // CSR instructions (I-type, imm field = csr addr)
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  cpu.mstatus = src1; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    cpu.mtvec = src1; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; cpu.mscratch = src1; break; \
+      case CSR_MEPC:     old = cpu.mepc;     cpu.mepc = src1; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   cpu.mcause = src1; break; \
+      case CSR_MIE:      old = cpu.mie;      cpu.mie = src1; break; \
+      case CSR_MIP:      old = cpu.mip;      break; /* mip is read-only for software */ \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  if (src1) cpu.mstatus |= src1; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    if (src1) cpu.mtvec |= src1; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; if (src1) cpu.mscratch |= src1; break; \
+      case CSR_MEPC:     old = cpu.mepc;     if (src1) cpu.mepc |= src1; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   if (src1) cpu.mcause |= src1; break; \
+      case CSR_MIE:      old = cpu.mie;      if (src1) cpu.mie |= src1; break; \
+      case CSR_MIP:      old = cpu.mip;      break; \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
+  INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  if (src1) cpu.mstatus &= ~src1; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    if (src1) cpu.mtvec &= ~src1; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; if (src1) cpu.mscratch &= ~src1; break; \
+      case CSR_MEPC:     old = cpu.mepc;     if (src1) cpu.mepc &= ~src1; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   if (src1) cpu.mcause &= ~src1; break; \
+      case CSR_MIE:      old = cpu.mie;      if (src1) cpu.mie &= ~src1; break; \
+      case CSR_MIP:      old = cpu.mip;      break; \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
+  // CSR immediate instructions (I-type, rs1=zimm)
+  INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t zimm = BITS(s->isa.inst, 19, 15); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  cpu.mstatus = zimm; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    cpu.mtvec = zimm; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; cpu.mscratch = zimm; break; \
+      case CSR_MEPC:     old = cpu.mepc;     cpu.mepc = zimm; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   cpu.mcause = zimm; break; \
+      case CSR_MIE:      old = cpu.mie;      cpu.mie = zimm; break; \
+      case CSR_MIP:      old = cpu.mip;      break; \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
+  INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t zimm = BITS(s->isa.inst, 19, 15); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  if (zimm) cpu.mstatus |= zimm; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    if (zimm) cpu.mtvec |= zimm; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; if (zimm) cpu.mscratch |= zimm; break; \
+      case CSR_MEPC:     old = cpu.mepc;     if (zimm) cpu.mepc |= zimm; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   if (zimm) cpu.mcause |= zimm; break; \
+      case CSR_MIE:      old = cpu.mie;      if (zimm) cpu.mie |= zimm; break; \
+      case CSR_MIP:      old = cpu.mip;      break; \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
+  INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, { word_t csr_addr = BITS(s->isa.inst, 31, 20); word_t zimm = BITS(s->isa.inst, 19, 15); word_t old = 0; \
+    switch(csr_addr) { \
+      case CSR_MSTATUS:  old = cpu.mstatus;  if (zimm) cpu.mstatus &= ~zimm; break; \
+      case CSR_MTVEC:    old = cpu.mtvec;    if (zimm) cpu.mtvec &= ~zimm; break; \
+      case CSR_MSCRATCH: old = cpu.mscratch; if (zimm) cpu.mscratch &= ~zimm; break; \
+      case CSR_MEPC:     old = cpu.mepc;     if (zimm) cpu.mepc &= ~zimm; break; \
+      case CSR_MCAUSE:   old = cpu.mcause;   if (zimm) cpu.mcause &= ~zimm; break; \
+      case CSR_MIE:      old = cpu.mie;      if (zimm) cpu.mie &= ~zimm; break; \
+      case CSR_MIP:      old = cpu.mip;      break; \
+      default: old = 0; break; \
+    } R(rd) = old; });
+
   // nop (addi x0, x0, 0)
   INSTPAT("0000000 00000 00000 000 00000 00100 11", nop   , I, );
 

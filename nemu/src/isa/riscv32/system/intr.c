@@ -8,21 +8,24 @@
 *
 * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
 #include <isa.h>
+#include "../local-include/reg.h"
 
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
-  /* TODO: Trigger an interrupt/exception with ``NO''.
-   * Then return the address of the interrupt/exception vector.
-   */
-
-  return 0;
+  cpu.mepc = epc;
+  cpu.mcause = NO;
+  cpu.mstatus = (cpu.mstatus & ~MSTATUS_MIE) | ((cpu.mstatus & MSTATUS_MIE) ? MSTATUS_MPIE : 0);
+  return cpu.mtvec;
 }
 
 word_t isa_query_intr() {
+  if ((cpu.mstatus & MSTATUS_MIE) && (cpu.mip & cpu.mie & MIP_MTIP)) {
+    return 7; // Machine timer interrupt
+  }
   return INTR_EMPTY;
 }
